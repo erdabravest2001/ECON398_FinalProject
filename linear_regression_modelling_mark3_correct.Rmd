@@ -1,0 +1,246 @@
+---
+title: "ECON 398 Data Analysis Final with Correct Data Partitioning"
+output: html_notebook
+---
+
+```{r}
+#install necessary packages #
+install.packages("tidyverse")
+install.packages("haven")
+install.packages("stargazer")
+install.packages("broom")
+install.packages("dplyr")
+install.packages("kableExtra")
+install.packages("foreign")
+install.packages("readr")
+```
+
+```{r}
+#import necessary packages #
+library(tidyverse)
+library(haven)
+library(stargazer)
+library(broom)
+library(dplyr)
+library(kableExtra)
+library(foreign)
+library(tidyverse)
+library(haven)
+library(stargazer)
+library(broom)
+library(dplyr)
+library(kableExtra)
+library(foreign)
+library(car)
+library(olsrr)
+library(texreg)
+library(ggplot2)
+library(ggiraph)
+library(ggiraphExtra)
+library(plyr)
+library(visreg)
+library(mclust)
+#install.packages("miceadds")
+library(miceadds)
+library(clubSandwich)
+library(survey)
+library(geepack)
+library(MLmetrics)
+library(lmerTest)
+library(quantreg)
+library(gt)
+library(gtsummary)
+library(jsonlite)
+library(jtools)
+library(pander)
+library(huxtable)
+library(modelsummary)
+```
+
+# PART 1: Partitioning Data Sets
+
+```{r}
+#extracting data #
+data <- read_dta("C:/Users/ethan/Desktop/2022W1/ECON398/RMD_Files/Data/CCHS_Annual_2017_2018.dta")
+sd1 <- subset(data, select=c(hwtdghtm, hwtdgbmi, DHH_SEX, dhhgage, SMK_005, CCC_015,  CCC_030, paadvacv, paadvvol))
+colnames(sd1) <- c("Height", "BMI", "Sex", "Age", "Smoker_Type", "Asthma", "COPD", "PAI", "WA7")
+sd1$WA7 <- log(sd1$WA7)
+sd <- sd1[is.finite(sd1$WA7),]
+#filter for Age Category 
+sdsd <- sd[(sd$Age <= 20  & sd$Age >= 3), ]
+```
+
+```{r}
+#removes the age column and Weekly Activity Columns 
+CCHS_final <- subset(sdsd, select=c(Height, BMI, Sex, Smoker_Type, Asthma, COPD, PAI, WA7))
+
+#controls for the presence of COPD and Asthma
+df1 = CCHS_final[(CCHS_final$Asthma == 2 & is.na(CCHS_final$COPD) |  CCHS_final$COPD == 2 | CCHS_final$COPD == 6 | CCHS_final$COPD == 7 |  CCHS_final$COPD == 8 | CCHS_final$COPD == 9), ]
+df2 = CCHS_final[(CCHS_final$Asthma == 1 & CCHS_final$COPD == 2 | CCHS_final$COPD == 6 | CCHS_final$COPD == 7 |  CCHS_final$COPD == 8 | CCHS_final$COPD == 9), ]
+df3 = CCHS_final[(CCHS_final$Asthma == 1 & CCHS_final$COPD == 1),]
+df4 = CCHS_final[(CCHS_final$Asthma == 2 & CCHS_final$COPD == 1),]
+#controls for Sex 
+df11 = df1[(df1$Sex == 1),]
+df12 = df1[(df1$Sex == 2),]
+
+
+df21 = df2[(df2$Sex == 1),]
+df22 = df2[(df2$Sex == 2),]
+
+
+df31 = df3[(df3$Sex == 1),]
+df32 = df3[(df3$Sex == 2),]
+
+
+df41 = df4[(df4$Sex == 1),]
+df42 = df4[(df4$Sex == 2),]
+
+#Controls for Smoker_Type
+#Asthma and COPD = no  S = Male
+a111 = df11[(df11$Smoker_Type == 1),]
+a112 = df11[(df11$Smoker_Type == 2),]
+a113 = df11[(df11$Smoker_Type == 3),]
+
+#Asthma and CoPD = no S = female
+a121 = df12[(df12$Smoker_Type == 1),]
+a122 = df12[(df12$Smoker_Type == 2),]
+a123 = df12[(df12$Smoker_Type == 3),]
+
+#Asthma = yes, CoPD = no S = Male
+a211 = df21[(df21$Smoker_Type == 1),]
+a212 = df21[(df21$Smoker_Type == 2),]
+a213 = df21[(df21$Smoker_Type == 3),]
+
+#Asthma = yes, CoPD = no S = Female
+a221 = df22[(df22$Smoker_Type == 1),]
+a222 = df22[(df22$Smoker_Type == 2),]
+a223 = df22[(df22$Smoker_Type == 3),]
+#Asthma = yes, CoPD = yes S = Male
+a311 = df31[(df31$Smoker_Type == 1),]
+a312 = df31[(df31$Smoker_Type == 2),]
+a313 = df31[(df31$Smoker_Type == 3),]
+
+#Asthma = yes, CoPD = no S = Female
+a321 = df32[(df32$Smoker_Type == 1),]
+a322 = df32[(df32$Smoker_Type == 2),]
+a323 = df32[(df32$Smoker_Type == 3),]
+
+#Asthma = no, CoPD = yes S = Male]
+a411 = df41[(df41$Smoker_Type == 1),]
+a412 = df41[(df41$Smoker_Type == 2),]
+a413 = df41[(df41$Smoker_Type == 3),]
+
+#Asthma = no, CoPD = yes S = Male]
+a421 = df42[(df42$Smoker_Type == 1),]
+a422 = df42[(df42$Smoker_Type == 2),]
+a423 = df42[(df42$Smoker_Type == 3),]
+
+#removes all of the columns except for the following: BMI, Height,and PAI. This is so that we can focus only on these variables as we have controlled already for Asthma/COPD, Sex and Smoker_Type. 
+
+a111 = subset(a111, select=c(Height, BMI, WA7, PAI))
+a112 = subset(a112, select=c(Height, BMI, WA7, PAI))
+a113 = subset(a113, select=c(Height, BMI, WA7, PAI))
+
+a121 = subset(a121, select=c(Height, BMI, WA7, PAI))
+a122 = subset(a122, select=c(Height, BMI, WA7, PAI))
+a123 = subset(a123, select=c(Height, BMI, WA7, PAI))
+
+
+a211 = subset(a211, select=c(Height, BMI, WA7, PAI))
+a212 = subset(a212, select=c(Height, BMI, WA7, PAI))
+a213 = subset(a213, select=c(Height, BMI, WA7, PAI))
+
+
+a221 = subset(a221, select=c(Height, BMI, WA7, PAI))
+a222 = subset(a222, select=c(Height, BMI, WA7, PAI))
+a223 = subset(a223, select=c(Height, BMI, WA7, PAI))
+
+a311 = subset(a311, select=c(Height, BMI, WA7, PAI))
+a312 = subset(a312, select=c(Height, BMI, WA7, PAI))
+a313 = subset(a313, select=c(Height, BMI, WA7, PAI))
+
+a321 = subset(a321, select=c(Height, BMI, WA7, PAI))
+a322 = subset(a322, select=c(Height, BMI, WA7, PAI))
+a323 = subset(a323, select=c(Height, BMI, WA7, PAI))
+
+a411 = subset(a411, select=c(Height, BMI, WA7, PAI))
+a412 = subset(a412, select=c(Height, BMI, WA7, PAI))
+a413 = subset(a413, select=c(Height, BMI, WA7, PAI))
+
+a421 = subset(a421, select=c(Height, BMI, WA7, PAI))
+a422 = subset(a422, select=c(Height, BMI, WA7, PAI))
+a423 = subset(a423, select=c(Height, BMI, WA7, PAI))
+
+
+```
+
+# PART 2: Linear Regression of all "6 models"
+
+```{r}
+
+
+model111 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a111)
+model112 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a112)
+model113 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a113)
+
+stargazer(model111, model112, model113, title = "Coefficients for Individuals with neither Asthma nor COPD (Males)", column.labels=c("Smokes Daily","Smokes Occasionally", "Non-Smoker"), model.numbers=FALSE, align=TRUE, single.row = TRUE)
+```
+
+```{r}
+model121 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a121)
+model122 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a122)
+model123 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a123)
+stargazer(model121, model122, model123, title = "Coefficients for Individuals with neither Asthma nor COPD (Females)", column.labels=c("Smokes Daily","Smokes Occasionally", "Non-Smoker"), model.numbers=FALSE, align=TRUE, single.row = TRUE)
+
+```
+
+```{r}
+model211 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a211)
+model212 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a212)
+model213 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a213)
+
+stargazer(model211, model212, model213, title = "Coefficients for Individuals with Asthma but not COPD (Males)", column.labels=c("Smokes Daily","Smokes Occasionally", "Non-Smoker"), model.numbers=FALSE, align=TRUE, single.row = TRUE)
+
+```
+
+```{r}
+model221 <- lm(WA7~ log(BMI/PAI) + log(BMI) + log(Height) , data =a221)
+model222 <- lm(WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a222)
+model223 <- lm(WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a223)
+
+stargazer(model221, model222, model223, title = "Coefficients for Individuals with Asthma but not COPD (Females)", column.labels=c("Smokes Daily","Smokes Occasionally", "Non-Smoker"), model.numbers=FALSE, align=TRUE, single.row = TRUE)
+```
+
+```{r}
+model311 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a311)
+model312 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a312)
+model313 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a313)
+
+stargazer(model311, model312, model313, title = "Coefficients for Individuals with Both Asthma and COPD (Males)", column.labels=c("Smokes Daily","Smokes Occasionally", "Non-Smoker"), model.numbers=FALSE, align=TRUE, single.row = TRUE)
+```
+
+```{r}
+model321 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a321)
+model322 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a322)
+model323 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a323)
+
+stargazer(model321, model322, model323, title = "Coefficients for Individuals with Both Asthma and COPD (Females)", column.labels=c("Smokes Daily","Smokes Occasionally", "Non-Smoker"), model.numbers=FALSE, align=TRUE, single.row=TRUE)
+```
+
+```{r}
+
+model411 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a411)
+model412 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a412)
+model413 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a413)
+
+stargazer(model411, model412, model413, title = "Coefficients for Individuals with  COPD  but No Asthma (Males)", column.labels=c("Smokes Daily","Smokes Occasionally", "Non-Smoker"), model.numbers=FALSE, align=TRUE, single.row=TRUE)
+
+```
+
+```{r}
+model421 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a421)
+model422 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a422)
+model423 <- lm( WA7~ log(BMI/PAI) + log(BMI) + log(Height),  data =a423)
+
+stargazer(model421, model422, model423, title = "Coefficients for Individuals with  COPD  but No Asthma (Females)", column.labels=c("Smokes Daily","Smokes Occasionally", "Non-Smoker"), model.numbers=FALSE, align=TRUE, single.row=TRUE)
+```
